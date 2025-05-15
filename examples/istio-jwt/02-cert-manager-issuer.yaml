@@ -1,0 +1,51 @@
+---
+# cert-manager self-signed Issuer
+# This creates a self-signed Issuer that can generate certificates for local testing
+apiVersion: cert-manager.io/v1
+kind: Issuer
+metadata:
+  name: selfsigned-issuer
+  namespace: magiclink
+  labels:
+    app.kubernetes.io/name: magiclink
+    app.kubernetes.io/part-of: magiclink-demo
+spec:
+  selfSigned: {}
+
+---
+# cert-manager CA Issuer
+# This creates a CA Issuer that uses the self-signed certificate
+# to issue certificates with a proper certificate chain
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: magiclink-ca
+  namespace: magiclink
+  labels:
+    app.kubernetes.io/name: magiclink
+    app.kubernetes.io/part-of: magiclink-demo
+spec:
+  isCA: true
+  commonName: magiclink-ca
+  secretName: magiclink-ca-tls
+  privateKey:
+    algorithm: RSA
+    size: 2048
+  issuerRef:
+    name: selfsigned-issuer
+    kind: Issuer
+    group: cert-manager.io
+
+---
+# Create an Issuer referencing the CA certificate we created
+apiVersion: cert-manager.io/v1
+kind: Issuer
+metadata:
+  name: magiclink-ca-issuer
+  namespace: magiclink
+  labels:
+    app.kubernetes.io/name: magiclink
+    app.kubernetes.io/part-of: magiclink-demo
+spec:
+  ca:
+    secretName: magiclink-ca-tls

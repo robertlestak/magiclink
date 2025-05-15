@@ -1,0 +1,180 @@
+# Demo Application with protected and public routes
+# This deploys a simple application with multiple content sections for testing authentication
+
+# Demo Application ConfigMap with sample content for different routes
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: demo-content
+  namespace: demo-app
+  labels:
+    app: demo-app
+    app.kubernetes.io/name: demo-app
+data:
+  # Public page content
+  index.html: |
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <title>Demo App - Public Page</title>
+      <style>
+        body { font-family: Arial, sans-serif; line-height: 1.6; max-width: 800px; margin: 0 auto; padding: 20px; }
+        .navbar { background-color: #f8f9fa; padding: 10px; border-radius: 5px; margin-bottom: 20px; }
+        .navbar a { margin-right: 15px; text-decoration: none; color: #333; font-weight: bold; }
+        .card { border: 1px solid #ddd; border-radius: 5px; padding: 20px; margin-bottom: 20px; }
+      </style>
+    </head>
+    <body>
+      <div class="navbar">
+        <a href="/">Home</a>
+        <a href="/public/">Public</a>
+        <a href="/protected/">Protected</a>
+        <a href="/api/private/">API</a>
+      </div>
+      <h1>Public Page</h1>
+      <div class="card">
+        <p>This is a public page that anyone can access without authentication.</p>
+        <p>The <strong>Protected</strong> section requires a valid magic link token.</p>
+      </div>
+      <div class="card">
+        <h2>Generate a Magic Link</h2>
+        <p>Visit the <a href="https://example.com/dashboard">MagicLink Dashboard</a> to generate a magic link for the protected section.</p>
+        <p>You can generate a token for multiple paths like <code>/protected/*</code> and <code>/api/private/*</code>.</p>
+      </div>
+    </body>
+    </html>
+  
+  # Protected page content - requires authentication
+  protected.html: |
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <title>Demo App - Protected Page</title>
+      <style>
+        body { font-family: Arial, sans-serif; line-height: 1.6; max-width: 800px; margin: 0 auto; padding: 20px; }
+        .navbar { background-color: #f8f9fa; padding: 10px; border-radius: 5px; margin-bottom: 20px; }
+        .navbar a { margin-right: 15px; text-decoration: none; color: #333; font-weight: bold; }
+        .card { border: 1px solid #ddd; border-radius: 5px; padding: 20px; margin-bottom: 20px; }
+        .secret { background-color: #e8f5e9; padding: 15px; border-radius: 5px; }
+      </style>
+    </head>
+    <body>
+      <div class="navbar">
+        <a href="/">Home</a>
+        <a href="/public/">Public</a>
+        <a href="/protected/">Protected</a>
+        <a href="/api/private/">API</a>
+      </div>
+      <h1>Protected Page</h1>
+      <div class="card">
+        <p>This is a protected page that requires authentication via MagicLink.</p>
+        <p>If you're seeing this page, you have successfully authenticated!</p>
+      </div>
+      <div class="card secret">
+        <h2>Secret Content</h2>
+        <p>This content is only visible to authenticated users.</p>
+        <p>Your magic link token will expire after the configured TTL.</p>
+        <p>Your token also gives you access to the <a href="/api/private/">API</a> section.</p>
+      </div>
+    </body>
+    </html>
+    
+  # Protected API content - also requires authentication
+  api-private.html: |
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <title>Demo App - Protected API</title>
+      <style>
+        body { font-family: Arial, sans-serif; line-height: 1.6; max-width: 800px; margin: 0 auto; padding: 20px; }
+        .navbar { background-color: #f8f9fa; padding: 10px; border-radius: 5px; margin-bottom: 20px; }
+        .navbar a { margin-right: 15px; text-decoration: none; color: #333; font-weight: bold; }
+        .card { border: 1px solid #ddd; border-radius: 5px; padding: 20px; margin-bottom: 20px; }
+        .api { background-color: #e3f2fd; padding: 15px; border-radius: 5px; font-family: monospace; }
+      </style>
+    </head>
+    <body>
+      <div class="navbar">
+        <a href="/">Home</a>
+        <a href="/public/">Public</a>
+        <a href="/protected/">Protected</a>
+        <a href="/api/private/">API</a>
+      </div>
+      <h1>Protected API</h1>
+      <div class="card">
+        <p>This is another protected area that requires the same authentication token.</p>
+        <p>Your token was configured with multiple path patterns: <code>["/protected/*", "/api/private/*"]</code></p>
+      </div>
+      <div class="card api">
+        <h2>API Response</h2>
+        <pre>
+          {
+            "status": "authenticated",
+            "user": "demo_user",
+            "access": "granted",
+            "paths": ["/protected/*", "/api/private/*"],
+            "timestamp": "2025-05-14T23:50:14Z"
+          }
+        </pre>
+      </div>
+    </body>
+    </html>
+
+---
+# Demo Application Deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: demo-app
+  namespace: demo-app
+  labels:
+    app: demo-app
+    app.kubernetes.io/name: demo-app
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: demo-app
+  template:
+    metadata:
+      labels:
+        app: demo-app
+    spec:
+      containers:
+      - name: nginx
+        image: nginx:alpine
+        ports:
+        - containerPort: 80
+        volumeMounts:
+        - name: demo-content
+          mountPath: /usr/share/nginx/html/public/index.html
+          subPath: index.html
+        - name: demo-content
+          mountPath: /usr/share/nginx/html/protected/index.html
+          subPath: protected.html
+        - name: demo-content
+          mountPath: /usr/share/nginx/html/api/private/index.html
+          subPath: api-private.html
+      volumes:
+      - name: demo-content
+        configMap:
+          name: demo-content
+
+---
+# Demo Application Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: demo-app
+  namespace: demo-app
+  labels:
+    app: demo-app
+    app.kubernetes.io/name: demo-app
+spec:
+  selector:
+    app: demo-app
+  ports:
+  - name: http
+    port: 80
+    targetPort: 80
+  type: ClusterIP

@@ -1,0 +1,51 @@
+version: '3.8'
+
+services:
+  # MagicLink service - admin interface on 8080, auth API on 9000 
+  magiclink:
+    build:
+      context: ../..
+      dockerfile: Dockerfile
+    environment:
+      - HMAC_SECRET=docker-compose-demo-secret-do-not-use-in-production
+      - LOG_LEVEL=debug
+      - TOKEN_PARAM=magic_token
+    ports:
+      # Admin port - only expose to administrators in production!
+      - "127.0.0.1:8080:8080"
+    networks:
+      - magiclink-internal
+      - public-network # only for demonstration purposes
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:8080/dashboard"]
+      interval: 5s
+      timeout: 5s
+      retries: 3
+      start_period: 5s
+
+  # NGINX service that uses MagicLink for authentication
+  nginx:
+    build:
+      context: ./nginx
+      dockerfile: Dockerfile
+    ports:
+      - "80:80"
+    depends_on:
+      magiclink:
+        condition: service_healthy
+    networks:
+      - magiclink-internal
+      - public-network
+    volumes:
+      - ./nginx/protected:/usr/share/nginx/protected
+      - ./nginx/public:/usr/share/nginx/public
+
+networks:
+  # Internal network for MagicLink and NGINX communication
+  magiclink-internal:
+    driver: bridge
+    internal: true  # This network is not accessible from outside Docker
+  
+  # Public network for external access to NGINX
+  public-network:
+    driver: bridge

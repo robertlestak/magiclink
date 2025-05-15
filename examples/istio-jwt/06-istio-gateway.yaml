@@ -1,0 +1,80 @@
+# Istio Gateway and VirtualService configuration
+# Configures ingress access to the demo services
+
+---
+# Gateway - External entry point for the cluster
+apiVersion: networking.istio.io/v1alpha3
+kind: Gateway
+metadata:
+  name: demo-gateway
+  namespace: istio-system
+  labels:
+    app.kubernetes.io/part-of: magiclink-demo
+spec:
+  selector:
+    istio: ingressgateway  # Use the default Istio ingress gateway
+  servers:
+  - port:
+      number: 80
+      name: http
+      protocol: HTTP
+    hosts:
+    - "demo-app.local"         # Demo application hostname
+    - "demo-admin.local"   # MagicLink admin hostname
+    # Note: In production, use actual domain names and configure TLS
+
+---
+# VirtualService for Demo Application
+# Routes requests for demo-app.local to the demo application
+apiVersion: networking.istio.io/v1alpha3
+kind: VirtualService
+metadata:
+  name: demo-app-vs
+  namespace: demo-app
+  labels:
+    app.kubernetes.io/part-of: magiclink-demo
+spec:
+  hosts:
+  - "demo-app.local"
+  gateways:
+  - istio-system/demo-gateway
+  http:
+  - match:
+    - uri:
+        prefix: /public/
+    - uri:
+        prefix: /protected/
+    - uri:
+        prefix: /api/private/
+    - uri:
+        exact: /
+    route:
+    - destination:
+        host: demo-app.demo-app.svc.cluster.local
+        port:
+          number: 80
+
+---
+# VirtualService for MagicLink Admin
+# Routes requests for demo-admin.local to the MagicLink service
+apiVersion: networking.istio.io/v1alpha3
+kind: VirtualService
+metadata:
+  name: magiclink-vs
+  namespace: magiclink
+  labels:
+    app.kubernetes.io/part-of: magiclink-demo
+spec:
+  hosts:
+  - "demo-admin.local"
+  gateways:
+  - istio-system/demo-gateway
+  http:
+  - match:
+    - uri:
+        prefix: /
+    route:
+    - destination:
+        host: magiclink.magiclink.svc.cluster.local
+        port:
+          number: 8080

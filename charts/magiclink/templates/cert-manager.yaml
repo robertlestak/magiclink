@@ -1,0 +1,99 @@
+{{- if and .Values.certManager.enabled .Values.certManager.issuer.create }}
+---
+# Self-signed Issuer (only if using cert-manager and self-signed option)
+{{- if .Values.certManager.issuer.selfSigned }}
+apiVersion: cert-manager.io/v1
+kind: Issuer
+metadata:
+  name: {{ include "magiclink.fullname" . }}-selfsigned-issuer
+  namespace: {{ .Values.namespace.name }}
+  labels:
+    {{- include "magiclink.labels" . | nindent 4 }}
+spec:
+  selfSigned: {}
+
+---
+# cert-manager CA Certificate
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: {{ include "magiclink.fullname" . }}-ca
+  namespace: {{ .Values.namespace.name }}
+  labels:
+    {{- include "magiclink.labels" . | nindent 4 }}
+spec:
+  isCA: true
+  commonName: {{ include "magiclink.fullname" . }}-ca
+  secretName: {{ include "magiclink.fullname" . }}-ca-tls
+  privateKey:
+    algorithm: RSA
+    size: 2048
+  issuerRef:
+    name: {{ include "magiclink.fullname" . }}-selfsigned-issuer
+    kind: Issuer
+    group: cert-manager.io
+
+---
+# CA Issuer referencing the self-signed CA certificate
+apiVersion: cert-manager.io/v1
+kind: Issuer
+metadata:
+  name: {{ include "magiclink.fullname" . }}-ca-issuer
+  namespace: {{ .Values.namespace.name }}
+  labels:
+    {{- include "magiclink.labels" . | nindent 4 }}
+spec:
+  ca:
+    secretName: {{ include "magiclink.fullname" . }}-ca-tls
+{{- end }}
+{{- end }}
+
+{{- if and .Values.certManager.enabled .Values.certManager.primaryCert.create }}
+---
+# Primary Certificate for JWT signing
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: {{ include "magiclink.fullname" . }}-jwt-signer-primary
+  namespace: {{ .Values.namespace.name }}
+  labels:
+    {{- include "magiclink.labels" . | nindent 4 }}
+spec:
+  commonName: {{ .Values.certManager.primaryCert.commonName }}
+  duration: {{ .Values.certManager.primaryCert.duration }}
+  renewBefore: {{ .Values.certManager.primaryCert.renewBefore }}
+  secretName: {{ .Values.certManager.primaryCert.secretName }}
+  privateKey:
+    algorithm: {{ .Values.certManager.primaryCert.keyAlgorithm }}
+    size: {{ .Values.certManager.primaryCert.keySize }}
+    encoding: {{ .Values.certManager.primaryCert.keyEncoding }}
+  issuerRef:
+    name: {{ include "magiclink.fullname" . }}-ca-issuer
+    kind: Issuer
+    group: cert-manager.io
+{{- end }}
+
+{{- if and .Values.certManager.enabled .Values.certManager.secondaryCert.create }}
+---
+# Secondary Certificate for JWT signing
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: {{ include "magiclink.fullname" . }}-jwt-signer-secondary
+  namespace: {{ .Values.namespace.name }}
+  labels:
+    {{- include "magiclink.labels" . | nindent 4 }}
+spec:
+  commonName: {{ .Values.certManager.secondaryCert.commonName }}
+  duration: {{ .Values.certManager.secondaryCert.duration }}
+  renewBefore: {{ .Values.certManager.secondaryCert.renewBefore }}
+  secretName: {{ .Values.certManager.secondaryCert.secretName }}
+  privateKey:
+    algorithm: {{ .Values.certManager.secondaryCert.keyAlgorithm }}
+    size: {{ .Values.certManager.secondaryCert.keySize }}
+    encoding: {{ .Values.certManager.secondaryCert.keyEncoding }}
+  issuerRef:
+    name: {{ include "magiclink.fullname" . }}-ca-issuer
+    kind: Issuer
+    group: cert-manager.io
+{{- end }}

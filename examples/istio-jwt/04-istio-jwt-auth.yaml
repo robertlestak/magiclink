@@ -1,0 +1,68 @@
+# Istio JWT Authentication Configuration
+# This file contains Istio RequestAuthentication and AuthorizationPolicy resources
+
+---
+# RequestAuthentication - Configures JWT validation settings
+apiVersion: security.istio.io/v1
+kind: RequestAuthentication
+metadata:
+  name: magiclink-jwt
+  namespace: demo-app
+  labels:
+    app.kubernetes.io/part-of: magiclink-demo
+spec:
+  selector:
+    matchLabels:
+      app: demo-app
+  jwtRules:
+  - jwksUri: "http://magiclink.magiclink.svc.cluster.local:8080/.well-known/jwks.json"
+    fromParams: ["magic_token"]    # URL query parameter
+    fromCookies: ["magic_token"]   # Browser cookie
+    # JWT issuer claim - must match the ISSUER value in MagicLink service
+    issuer: "magiclink"
+
+---
+# AuthorizationPolicy - Protected Resources
+# Controls access to protected paths based on JWT validation
+apiVersion: security.istio.io/v1beta1
+kind: AuthorizationPolicy
+metadata:
+  name: magiclink-jwt-policy
+  namespace: demo-app
+  labels:
+    app.kubernetes.io/part-of: magiclink-demo
+spec:
+  selector:
+    matchLabels:
+      app: demo-app
+  action: ALLOW
+  rules:
+  - to:
+    - operation:
+        # Pattern matching for protected paths
+        paths: ["/protected/*", "/api/private/*"]
+    when:
+    - key: request.auth.principal
+      # Match the issuer "magiclink" with subject "user"
+      values: ["magiclink/user"]
+
+---
+# AuthorizationPolicy - Public Resources
+# Allows access to public paths without authentication
+apiVersion: security.istio.io/v1
+kind: AuthorizationPolicy
+metadata:
+  name: magiclink-authz-public-paths
+  namespace: demo-app
+  labels:
+    app.kubernetes.io/part-of: magiclink-demo
+spec:
+  selector:
+    matchLabels:
+      app: demo-app
+  action: ALLOW
+  rules:
+    - to:
+      - operation:
+          # Define public paths that don't require authentication
+          paths: ["/", "/public/*"]

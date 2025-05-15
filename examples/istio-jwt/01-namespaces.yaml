@@ -1,0 +1,24 @@
+---
+# Define and configure the necessary Kubernetes namespaces for the MagicLink Istio JWT demo
+# This creates namespaces with Istio injection enabled
+
+# MagicLink service namespace
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: magiclink
+  labels:
+    istio-injection: enabled
+    app.kubernetes.io/name: magiclink
+    app.kubernetes.io/part-of: magiclink-demo
+
+---
+# Demo application namespace
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: demo-app
+  labels:
+    istio-injection: enabled
+    app.kubernetes.io/name: demo-app
+    app.kubernetes.io/part-of: magiclink-demo

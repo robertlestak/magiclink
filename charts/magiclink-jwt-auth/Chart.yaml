@@ -1,0 +1,16 @@
+apiVersion: v2
+name: magiclink-jwt-auth
+description: Istio JWT authentication resources for applications using MagicLink
+type: application
+version: 0.1.0
+appVersion: "latest"
+home: https://github.com/robertlestak/magiclink
+sources:
+  - https://github.com/robertlestak/magiclink
+maintainers:
+  - name: MagicLink Maintainers
+keywords:
+  - authentication
+  - jwt
+  - authorization
+  - istio

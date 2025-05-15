@@ -1,0 +1,44 @@
+# Default values for MagicLink JWT Authentication Chart
+# This is a YAML-formatted file.
+
+# MagicLink service reference
+magiclinkService:
+  # MagicLink service URL (can be internal or external)
+  # For in-cluster: "http://magiclink.magiclink:8080"
+  # For external: "https://magiclink.example.com"
+  url: "http://magiclink.magiclink:8080"
+  # JWT issuer claim (must match the configuration in the MagicLink service)
+  issuer: "magiclink"
+  # Cookie name for token storage
+  cookieName: "magic_token"
+  # Query parameter name for token
+  tokenParam: "magic_token"
+
+# Target application
+application:
+  # Target namespace for JWT auth (must already exist)
+  namespace: "default"
+  # Selector labels for the target application
+  selector:
+    app: "my-app"
+  # JWT subject values allowed to access protected resources
+  allowedSubjects:
+    - "user"
+    - "admin"
+
+# Protected paths that require JWT authentication
+# All other paths will be publicly accessible by default
+protectedPaths:
+  - "/protected/*"
+  - "/api/private/*"
+
+# Token-to-cookie handling via EnvoyFilter (optional)
+cookieHandling:
+  # Enable cookie handling feature
+  enabled: false
+  # Maximum age of the cookie in seconds (default: 900 = 15 minutes)
+  maxAge: 900
+  # Remove content headers during redirect
+  removeHeaders: true
+  # Optional proxy version constraint (e.g. "^1\\.[89].*")
+  proxyVersion: ""

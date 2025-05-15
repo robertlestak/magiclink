@@ -1,0 +1,457 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MagicLink Dashboard</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+    <style>
+        body {
+            padding-top: 20px;
+            background-color: #f8f9fa;
+        }
+        .container {
+            max-width: 800px;
+        }
+        .form-card {
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+        .result-box {
+            background-color: #f8f9fa;
+            border-radius: 4px;
+            padding: 15px;
+            margin-top: 10px;
+            font-family: monospace;
+            white-space: pre-wrap;
+            word-break: break-all;
+        }
+        .form-label {
+            font-weight: 500;
+        }
+        #claimsList {
+            list-style-type: none;
+            padding-left: 0;
+        }
+        #claimsList li {
+            margin-bottom: 10px;
+            display: flex;
+            gap: 10px;
+        }
+        .delete-claim {
+            color: #dc3545;
+            cursor: pointer;
+        }
+        .nav-tabs .nav-link {
+            border-radius: 8px 8px 0 0;
+        }
+        .nav-tabs .nav-link.active {
+            background-color: white;
+            border-bottom-color: white;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1 class="text-center mb-4">MagicLink Dashboard</h1>
+        
+        <div class="card form-card">
+            <div class="card-body">
+                <h5 class="card-title mb-3">Generate Token</h5>
+                
+                <form id="tokenForm">
+                    <div class="mb-3">
+                        <div class="alert alert-info">
+                            <strong>Claims-Based Authorization:</strong> MagicLink uses a claims-based approach for authorization. 
+                            Add your authorization-related values directly to the claims section below.
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="ttl" class="form-label">TTL (Time To Live)</label>
+                        <input type="text" class="form-control" id="ttl" placeholder="15m">
+                        <small class="form-text text-muted">Duration format (e.g., 15m, 1h, 24h)</small>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="subject" class="form-label">Subject</label>
+                        <input type="text" class="form-control" id="subject" placeholder="user">
+                        <small class="form-text text-muted">The subject identity (e.g., user, admin, service-name)</small>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="baseUrl" class="form-label">Base URL (for magic link)</label>
+                        <input type="url" class="form-control" id="baseUrl" placeholder="https://yourapp.com">
+                        <small class="form-text text-muted">The base URL to create a clickable magic link</small>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Claims</label>
+                        <div id="claimsList"></div>
+                        
+                        <div class="row g-2">
+                            <div class="col-5">
+                                <input type="text" class="form-control" id="claimKey" placeholder="Key (e.g., path, role)">
+                            </div>
+                            <div class="col-5">
+                                <input type="text" class="form-control" id="claimValue" placeholder="Value (e.g., /api/*, admin)">
+                            </div>
+                            <div class="col-2">
+                                <button type="button" class="btn btn-secondary w-100" id="addClaim">Add</button>
+                            </div>
+                        </div>
+                        <small class="form-text text-muted">Add claims for authorization in your application</small>
+                    </div>
+                    
+                    <div class="d-grid gap-2">
+                        <button type="submit" class="btn btn-primary">Generate Token</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+        
+        <div class="card form-card" id="resultCard" style="display: none;">
+            <div class="card-body">
+                <h5 class="card-title mb-3">Generated Token</h5>
+                
+                <ul class="nav nav-tabs" role="tablist">
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link active" id="token-tab" data-bs-toggle="tab" data-bs-target="#token" type="button" role="tab">Token</button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="link-tab" data-bs-toggle="tab" data-bs-target="#link" type="button" role="tab">Magic Link</button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="json-tab" data-bs-toggle="tab" data-bs-target="#json" type="button" role="tab">Full JSON</button>
+                    </li>
+                </ul>
+                
+                <div class="tab-content mt-3">
+                    <div class="tab-pane fade show active" id="token" role="tabpanel">
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <strong>JWT Token</strong>
+                            <button class="btn btn-sm btn-outline-secondary" id="copyToken">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-clipboard" viewBox="0 0 16 16">
+                                    <path d="M4 1.5H3a2 2 0 0 0-2 2V14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V3.5a2 2 0 0 0-2-2h-1v1h1a1 1 0 0 1 1 1V14a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V3.5a1 1 0 0 1 1-1h1v-1z"/>
+                                    <path d="M9.5 1a.5.5 0 0 1 .5.5v1a.5.5 0 0 1-.5.5h-3a.5.5 0 0 1-.5-.5v-1a.5.5 0 0 1 .5-.5h3zm-3-1A1.5 1.5 0 0 0 5 1.5v1A1.5 1.5 0 0 0 6.5 4h3A1.5 1.5 0 0 0 11 2.5v-1A1.5 1.5 0 0 0 9.5 0h-3z"/>
+                                </svg>
+                                Copy
+                            </button>
+                        </div>
+                        <div class="result-box" id="tokenResult"></div>
+                    </div>
+                    
+                    <div class="tab-pane fade" id="link" role="tabpanel">
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <strong>Magic Link URL</strong>
+                            <button class="btn btn-sm btn-outline-secondary" id="copyLink">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-clipboard" viewBox="0 0 16 16">
+                                    <path d="M4 1.5H3a2 2 0 0 0-2 2V14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V3.5a2 2 0 0 0-2-2h-1v1h1a1 1 0 0 1 1 1V14a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V3.5a1 1 0 0 1 1-1h1v-1z"/>
+                                    <path d="M9.5 1a.5.5 0 0 1 .5.5v1a.5.5 0 0 1-.5.5h-3a.5.5 0 0 1-.5-.5v-1a.5.5 0 0 1 .5-.5h3zm-3-1A1.5 1.5 0 0 0 5 1.5v1A1.5 1.5 0 0 0 6.5 4h3A1.5 1.5 0 0 0 11 2.5v-1A1.5 1.5 0 0 0 9.5 0h-3z"/>
+                                </svg>
+                                Copy
+                            </button>
+                        </div>
+                        <div class="result-box" id="linkResult"></div>
+                        <div class="mt-3">
+                            <a href="#" class="btn btn-primary" id="openLink" target="_blank">Open Link</a>
+                        </div>
+                    </div>
+                    
+                    <div class="tab-pane fade" id="json" role="tabpanel">
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <strong>Full Response</strong>
+                            <button class="btn btn-sm btn-outline-secondary" id="copyJson">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-clipboard" viewBox="0 0 16 16">
+                                    <path d="M4 1.5H3a2 2 0 0 0-2 2V14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V3.5a2 2 0 0 0-2-2h-1v1h1a1 1 0 0 1 1 1V14a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V3.5a1 1 0 0 1 1-1h1v-1z"/>
+                                    <path d="M9.5 1a.5.5 0 0 1 .5.5v1a.5.5 0 0 1-.5.5h-3a.5.5 0 0 1-.5-.5v-1a.5.5 0 0 1 .5-.5h3zm-3-1A1.5 1.5 0 0 0 5 1.5v1A1.5 1.5 0 0 0 6.5 4h3A1.5 1.5 0 0 0 11 2.5v-1A1.5 1.5 0 0 0 9.5 0h-3z"/>
+                                </svg>
+                                Copy
+                            </button>
+                        </div>
+                        <div class="result-box" id="jsonResult"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card form-card">
+            <div class="card-body">
+                <h5 class="card-title mb-3">Validate Token</h5>
+                
+                <form id="validateForm">
+                    <div class="mb-3">
+                        <label for="validateToken" class="form-label">Token*</label>
+                        <input type="text" class="form-control" id="validateToken" required>
+                    </div>
+                    
+                    <div class="d-grid gap-2">
+                        <button type="submit" class="btn btn-secondary">Validate Token</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+        
+        <div class="card form-card" id="validationResultCard" style="display: none;">
+            <div class="card-body">
+                <h5 class="card-title mb-3">Validation Result</h5>
+                <div class="result-box" id="validationResult"></div>
+            </div>
+        </div>
+    </div>
+    
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            // API endpoints - check if we're being proxied through NGINX
+            const isProxied = window.location.pathname.startsWith('/magiclink/');
+            
+            // Determine the base URL for API calls
+            const baseUrl = isProxied ? '/magiclink' : '';
+            
+            // API endpoints
+            const apiEndpoint = `${baseUrl}/token`;
+            const validateEndpoint = `${baseUrl}/token/validate`;
+            
+            // Claims management
+            const claims = {};
+            const claimsList = document.getElementById('claimsList');
+            const claimKey = document.getElementById('claimKey');
+            const claimValue = document.getElementById('claimValue');
+            const addClaimBtn = document.getElementById('addClaim');
+            
+            function updateClaimsList() {
+                claimsList.innerHTML = '';
+                Object.entries(claims).forEach(([key, value]) => {
+                    const li = document.createElement('li');
+                    li.innerHTML = `
+                        <span class="badge bg-light text-dark p-2 flex-grow-1">${key}: ${value}</span>
+                        <span class="delete-claim" data-key="${key}">&times;</span>
+                    `;
+                    claimsList.appendChild(li);
+                });
+                
+                document.querySelectorAll('.delete-claim').forEach(btn => {
+                    btn.addEventListener('click', function() {
+                        const key = this.getAttribute('data-key');
+                        delete claims[key];
+                        updateClaimsList();
+                    });
+                });
+            }
+            
+            addClaimBtn.addEventListener('click', function() {
+                const key = claimKey.value.trim();
+                const value = claimValue.value.trim();
+                
+                if (key && value) {
+                    claims[key] = value;
+                    claimKey.value = '';
+                    claimValue.value = '';
+                    updateClaimsList();
+                }
+            });
+            
+            // Generate token form
+            const tokenForm = document.getElementById('tokenForm');
+            const resultCard = document.getElementById('resultCard');
+            const tokenResult = document.getElementById('tokenResult');
+            const linkResult = document.getElementById('linkResult');
+            const jsonResult = document.getElementById('jsonResult');
+            const openLink = document.getElementById('openLink');
+            
+            tokenForm.addEventListener('submit', async function(e) {
+                e.preventDefault();
+                
+                const ttl = document.getElementById('ttl').value;
+                const subject = document.getElementById('subject').value;
+                const baseUrl = document.getElementById('baseUrl').value;
+                
+                const requestData = {};
+                
+                if (ttl) {
+                    requestData.ttl = ttl;
+                }
+                
+                if (subject) {
+                    requestData.sub = subject;
+                }
+                
+                if (Object.keys(claims).length > 0) {
+                    requestData.claims = { ...claims };
+                }
+                
+                try {
+                    const response = await fetch(apiEndpoint, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify(requestData),
+                    });
+                    
+                    if (!response.ok) {
+                        throw new Error(`Error: ${response.status} ${response.statusText}`);
+                    }
+                    
+                    const data = await response.json();
+                    
+                    // Display results
+                    tokenResult.textContent = data.token;
+                    
+                    // With the claims-based approach, we manually construct the magic link if base URL is provided
+                    let magicLink = '';
+                    if (baseUrl) {
+                        // Construct the magic link
+                        const tokenParam = 'magic_token'; // Default token parameter name
+                        magicLink = `${baseUrl}?${tokenParam}=${data.token}`;
+                    }
+                    
+                    linkResult.textContent = magicLink || 'No magic link available (Base URL not provided)';
+                    jsonResult.textContent = JSON.stringify(data, null, 2);
+                    
+                    if (magicLink) {
+                        openLink.href = magicLink;
+                        openLink.style.display = 'inline-block';
+                    } else {
+                        openLink.style.display = 'none';
+                    }
+                    
+                    resultCard.style.display = 'block';
+                } catch (error) {
+                    alert(`Failed to generate token: ${error.message}`);
+                }
+            });
+
+            // Validate token form
+            const validateForm = document.getElementById('validateForm');
+            const validationResultCard = document.getElementById('validationResultCard');
+            const validationResult = document.getElementById('validationResult');
+            
+            validateForm.addEventListener('submit', async function(e) {
+                e.preventDefault();
+                
+                const token = document.getElementById('validateToken').value;
+                
+                try {
+                    // Use the same token parameter name that's used for generating magic links
+                    const tokenParam = 'magic_token';
+                    const response = await fetch(`${validateEndpoint}?${tokenParam}=${encodeURIComponent(token)}`);
+                    
+                    if (!response.ok) {
+                        throw new Error(`Error: ${response.status} ${response.statusText}`);
+                    }
+                    
+                    const data = await response.json();
+                    
+                    // Format the validation result
+                    let resultHtml = '';
+                    
+                    if (data.valid) {
+                        resultHtml += '<div class="alert alert-success mb-3">Token is valid</div>';
+                        
+                        if (data.expires_in) {
+                            resultHtml += `<div class="mb-3"><strong>Expires in:</strong> ${data.expires_in}</div>`;
+                        }
+                        
+                        // Display claims in a more readable format
+                        if (data.claims && Object.keys(data.claims).length > 0) {
+                            resultHtml += '<div class="mb-3"><strong>Claims:</strong><ul>';
+                            
+                            for (const [key, value] of Object.entries(data.claims)) {
+                                resultHtml += `<li><code>${key}: "${value}"</code></li>`;
+                            }
+                            
+                            resultHtml += '</ul></div>';
+                        }
+                    } else {
+                        resultHtml += `<div class="alert alert-danger mb-3">Token is invalid: ${data.error}</div>`;
+                    }
+                    
+                    // Add raw JSON at the bottom
+                    resultHtml += '<details><summary>Raw JSON Response</summary>';
+                    resultHtml += `<pre>${JSON.stringify(data, null, 2)}</pre>`;
+                    resultHtml += '</details>';
+                    
+                    // Display results
+                    validationResult.innerHTML = resultHtml;
+                    validationResultCard.style.display = 'block';
+                } catch (error) {
+                    alert(`Failed to validate token: ${error.message}`);
+                }
+            });
+            
+            // Copy functionality with fallback for older browsers
+            function setupCopyButton(buttonId, resultId) {
+                document.getElementById(buttonId).addEventListener('click', function() {
+                    const textToCopy = document.getElementById(resultId).textContent;
+                    const originalText = this.innerHTML;
+                    
+                    // Try to use modern Clipboard API first
+                    if (navigator.clipboard && navigator.clipboard.writeText) {
+                        navigator.clipboard.writeText(textToCopy)
+                            .then(() => {
+                                this.innerHTML = 'Copied!';
+                                setTimeout(() => {
+                                    this.innerHTML = originalText;
+                                }, 1500);
+                            })
+                            .catch(() => {
+                                // Fall back to traditional approach if clipboard API fails
+                                fallbackCopyTextToClipboard(textToCopy, this, originalText);
+                            });
+                    } else {
+                        // Fallback for browsers without clipboard API
+                        fallbackCopyTextToClipboard(textToCopy, this, originalText);
+                    }
+                });
+            }
+            
+            // Fallback copy method using textarea element
+            function fallbackCopyTextToClipboard(text, button, originalButtonText) {
+                const textArea = document.createElement('textarea');
+                textArea.value = text;
+                
+                // Make the textarea out of viewport
+                textArea.style.position = 'fixed';
+                textArea.style.left = '-999999px';
+                textArea.style.top = '-999999px';
+                document.body.appendChild(textArea);
+                
+                // Focus and select the text
+                textArea.focus();
+                textArea.select();
+                
+                // Try to execute the copy command
+                let successful = false;
+                try {
+                    successful = document.execCommand('copy');
+                } catch (err) {
+                    console.error('Fallback: Oops, unable to copy', err);
+                }
+                
+                // Clean up
+                document.body.removeChild(textArea);
+                
+                // Update button text
+                if (successful) {
+                    button.innerHTML = 'Copied!';
+                    setTimeout(() => {
+                        button.innerHTML = originalButtonText;
+                    }, 1500);
+                } else {
+                    button.innerHTML = 'Failed!';
+                    setTimeout(() => {
+                        button.innerHTML = originalButtonText;
+                    }, 1500);
+                }
+            }
+            
+            setupCopyButton('copyToken', 'tokenResult');
+            setupCopyButton('copyLink', 'linkResult');
+            setupCopyButton('copyJson', 'jsonResult');
+        });
+    </script>
+</body>
+</html>

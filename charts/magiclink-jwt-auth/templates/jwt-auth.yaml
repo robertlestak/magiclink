@@ -1,0 +1,52 @@
+---
+# RequestAuthentication - Configures JWT validation settings
+apiVersion: security.istio.io/v1
+kind: RequestAuthentication
+metadata:
+  name: {{ include "magiclink-jwt-auth.fullname" . }}
+  namespace: {{ .Values.application.namespace }}
+  labels:
+    {{- include "magiclink-jwt-auth.labels" . | nindent 4 }}
+spec:
+  selector:
+    matchLabels:
+      {{- toYaml .Values.application.selector | nindent 6 }}
+  jwtRules:
+  - jwksUri: "{{ .Values.magiclinkService.url }}/.well-known/jwks.json"
+    # Accept token from multiple sources
+    fromParams: ["{{ .Values.magiclinkService.tokenParam }}"]    # URL query parameter
+    fromCookies: ["{{ .Values.magiclinkService.cookieName }}"]   # Browser cookie
+    # JWT issuer claim - must match the ISSUER value in MagicLink service
+    issuer: {{ .Values.magiclinkService.issuer | quote }}
+
+---
+# AuthorizationPolicy - Protected Resources
+# Controls access to protected paths based on JWT validation
+apiVersion: security.istio.io/v1beta1
+kind: AuthorizationPolicy
+metadata:
+  name: {{ include "magiclink-jwt-auth.fullname" . }}-protected
+  namespace: {{ .Values.application.namespace }}
+  labels:
+    {{- include "magiclink-jwt-auth.labels" . | nindent 4 }}
+spec:
+  selector:
+    matchLabels:
+      {{- toYaml .Values.application.selector | nindent 6 }}
+  action: ALLOW
+  rules:
+  - to:
+    - operation:
+        # Pattern matching for protected paths
+        paths:
+        {{- range .Values.protectedPaths }}
+        - {{ . | quote }}
+        {{- end }}
+    when:
+    - key: request.auth.principal
+      # Match the issuer and allowed subjects
+      values:
+      {{- range .Values.application.allowedSubjects }}
+      - "{{ $.Values.magiclinkService.issuer }}/{{ . }}"
+      {{- end }}
+

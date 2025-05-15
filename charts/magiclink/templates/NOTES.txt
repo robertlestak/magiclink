@@ -1,0 +1,41 @@
+Thank you for installing {{ .Chart.Name }}.
+
+Your release is named {{ .Release.Name }}.
+
+To learn more about the release, try:
+
+  $ helm status {{ .Release.Name }}
+  $ helm get all {{ .Release.Name }}
+
+MagicLink service is available at:
+
+  http://{{ include "magiclink.fullname" . }}.{{ .Values.namespace.name }}.svc.cluster.local:{{ .Values.service.port }}
+
+MagicLink endpoints:
+
+- Dashboard: /dashboard
+- API: /token
+- Validate tokens: /token/validate
+- JWKS: /.well-known/jwks.json
+
+{{- if and (eq .Values.config.signingAlg "RS256") .Values.certManager.enabled }}
+RS256 signing is enabled with cert-manager.
+The primary signing key is stored in the secret: {{ .Values.certManager.primaryCert.secretName }}
+{{- else if eq .Values.config.signingAlg "HS256" }}
+HS256 signing is enabled with the HMAC secret provided.
+{{- end }}
+
+
+To generate a JWT token:
+
+curl -X POST http://{{ include "magiclink.fullname" . }}.{{ .Values.namespace.name }}.svc.cluster.local:{{ .Values.service.port }}/token \
+  -d '{
+    "ttl": "1h",
+    "sub": "user",
+    "claims": {
+      "user_id": "123456"
+    }
+  }'
+
+This token can be used with Istio JWT authentication to protect your applications.
+See the documentation for examples of how to configure Istio JWT authentication.

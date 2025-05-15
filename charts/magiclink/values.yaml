@@ -1,0 +1,106 @@
+# Default values for MagicLink Helm chart
+# This is a YAML-formatted file.
+# Declare variables to be passed into your templates.
+
+# Namespace to deploy MagicLink
+namespace:
+  # Create a namespace
+  create: true
+  # Name of the namespace
+  name: magiclink
+
+# MagicLink image settings
+image:
+  repository: registry.shdw.tech/magiclink
+  tag: latest
+  pullPolicy: Always
+
+# Replica count for the deployment
+replicaCount: 1
+
+# Service configuration
+service:
+  type: ClusterIP
+  port: 8080
+  name: http
+
+# Resource requests and limits
+resources:
+  requests:
+    cpu: 100m
+    memory: 128Mi
+  limits:
+    cpu: 200m
+    memory: 256Mi
+
+# MagicLink configuration
+config:
+  # Use RS256 (asymmetric) or HS256 (symmetric) signing
+  signingAlg: "RS256"
+  # Cookie name for token storage
+  cookieName: "magic_token"
+  # Query parameter name for token
+  tokenParam: "magic_token"
+  # JWT issuer claim - must match RequestAuthentication
+  issuer: "magiclink"
+  # Log level (debug, info, warn, error)
+  logLevel: "info"
+  # Disable automatic key rotation (when using cert-manager)
+  autoRotateKeys: "false"
+  # Service listening address
+  httpAddr: ":8080"
+  # Paths to the key files (when using RS256)
+  keyPaths: "/keys/primary/tls.key,/keys/secondary/tls.key"
+  # HMAC secret (when using HS256)
+  hmacSecret: ""
+  # Default token TTL
+  defaultTTL: "15m"
+
+# Certificate management with cert-manager
+certManager:
+  enabled: true
+  # Certificate issuer settings
+  issuer:
+    create: true
+    selfSigned: true
+
+  # Primary JWT signing certificate
+  primaryCert:
+    create: true
+    commonName: "jwt-signer-primary.magiclink.svc"
+    duration: "8760h" # 1 year
+    renewBefore: "720h" # 30 days
+    secretName: "magiclink-jwt-signer-primary"
+    keyAlgorithm: "RSA"
+    keySize: 2048
+    keyEncoding: "PKCS1"
+
+  # Secondary JWT signing certificate
+  secondaryCert:
+    create: true
+    commonName: "jwt-signer-secondary.magiclink.svc"
+    duration: "17520h" # 2 years
+    renewBefore: "720h" # 30 days
+    secretName: "magiclink-jwt-signer-secondary"
+    keyAlgorithm: "RSA"
+    keySize: 2048
+    keyEncoding: "PKCS1"
+
+# Pod-related settings
+podAnnotations: {}
+podLabels: {}
+nodeSelector: {}
+tolerations: []
+affinity: {}
+
+# Enable ServiceAccount creation
+serviceAccount:
+  create: true
+  name: "magiclink"
+  annotations: {}
+
+# Security context
+securityContext:
+  fsGroup: 65534
+  runAsNonRoot: true
+  runAsUser: 65534

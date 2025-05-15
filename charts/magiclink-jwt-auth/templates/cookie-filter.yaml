@@ -1,0 +1,106 @@
+{{- if .Values.cookieHandling.enabled }}
+---
+# Token cookie handler - EnvoyFilter to handle token-to-cookie conversion
+apiVersion: networking.istio.io/v1alpha3
+kind: EnvoyFilter
+metadata:
+  name: {{ include "magiclink-jwt-auth.fullname" . }}-cookie-handler
+  namespace: {{ .Values.application.namespace }}
+  labels:
+    {{- include "magiclink-jwt-auth.labels" . | nindent 4 }}
+spec:
+  workloadSelector:
+    labels:
+      {{- toYaml .Values.application.selector | nindent 6 }}
+  configPatches:
+  - applyTo: HTTP_FILTER
+    match:
+      context: SIDECAR_INBOUND
+      listener:
+        filterChain:
+          filter:
+            name: "envoy.filters.network.http_connection_manager"
+      {{- if .Values.cookieHandling.proxyVersion }}
+      proxy:
+        proxyVersion: "{{ .Values.cookieHandling.proxyVersion }}"
+      {{- end }}
+    patch:
+      operation: INSERT_BEFORE
+      value:
+        name: envoy.lua
+        typed_config:
+          "@type": "type.googleapis.com/envoy.extensions.filters.http.lua.v3.Lua"
+          inlineCode: |
+            function envoy_on_request(request_handle)
+              local path = request_handle:headers():get(":path") or ""
+              request_handle:logInfo("Request path: " .. path)
+
+              local token_param = "{{ .Values.magiclinkService.tokenParam }}="
+              local token_start, token_end = string.find(path, token_param)
+
+              if token_start then
+                local token_value_start = token_end + 1
+                local token_value_end = string.find(path, "&", token_value_start) or string.find(path, "#", token_value_start)
+                local token
+
+                if token_value_end then
+                  token = string.sub(path, token_value_start, token_value_end - 1)
+                else
+                  token = string.sub(path, token_value_start)
+                end
+
+                token = token:gsub("%%(%x%x)", function(hex)
+                  return string.char(tonumber(hex, 16))
+                end)
+
+                request_handle:streamInfo():dynamicMetadata():set("magiclink", "token_found", "true")
+                request_handle:streamInfo():dynamicMetadata():set("magiclink", "token_value", token)
+                request_handle:logInfo("Token extracted: " .. token)
+
+                local clean_path
+                if token_start > 1 and string.sub(path, token_start - 1, token_start - 1) == "?" then
+                  if token_value_end then
+                    clean_path = string.sub(path, 1, token_start - 2) .. string.sub(path, token_value_end)
+                  else
+                    clean_path = string.sub(path, 1, token_start - 2)
+                  end
+                elseif token_start > 1 and string.sub(path, token_start - 1, token_start - 1) == "&" then
+                  if token_value_end then
+                    clean_path = string.sub(path, 1, token_start - 2) .. string.sub(path, token_value_end)
+                  else
+                    clean_path = string.sub(path, 1, token_start - 2)
+                  end
+                end
+
+                if clean_path then
+                  request_handle:streamInfo():dynamicMetadata():set("magiclink", "clean_path", clean_path)
+                  request_handle:logInfo("Clean path set: " .. clean_path)
+                end
+              end
+            end
+
+            function envoy_on_response(response_handle)
+              local metadata = response_handle:streamInfo():dynamicMetadata():get("magiclink")
+              if metadata then
+                local token_found = metadata["token_found"]
+                if token_found == "true" then
+                  local token = metadata["token_value"]
+                  local clean_path = metadata["clean_path"]
+
+                  local cookie = "{{ .Values.magiclinkService.cookieName }}=" .. token .. "; Path=/; HttpOnly; Max-Age={{ .Values.cookieHandling.maxAge }}"
+                  response_handle:headers():add("Set-Cookie", cookie)
+                  response_handle:logInfo("Set-Cookie header added: " .. cookie)
+
+                  if clean_path then
+                    response_handle:headers():replace(":status", "302")
+                    response_handle:headers():replace("location", clean_path)
+                    response_handle:headers():remove("content-length")
+                    {{- if .Values.cookieHandling.removeHeaders }}
+                    response_handle:headers():remove("content-type")
+                    {{- end }}
+                    response_handle:logInfo("Redirecting to clean path: " .. clean_path)
+                  end
+                end
+              end
+            end
+{{- end }}

@@ -1,0 +1,111 @@
+---
+# MagicLink service configuration and deployment
+# Configures the MagicLink service with RS256 signing and dynamic JWKS endpoint
+
+# MagicLink ConfigMap with service configuration
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: magiclink-config
+  namespace: magiclink
+  labels:
+    app.kubernetes.io/name: magiclink
+data:
+  # Use RS256 signing (asymmetric cryptography)
+  SIGNING_ALG: "RS256"
+  # Cookie name for token storage
+  COOKIE_NAME: "magic_token"
+  # Query parameter name for token
+  TOKEN_PARAM: "magic_token"
+  # JWT issuer claim - must match RequestAuthentication
+  ISSUER: "magiclink"
+  # Enable debug logging for easier troubleshooting
+  LOG_LEVEL: "debug"
+  # Key rotation is now handled by cert-manager
+  AUTO_ROTATE_KEYS: "false"    # Disable automatic key rotation
+  # Service addresses
+  HTTP_ADDR: ":8080"           # Admin dashboard and API
+  KEY_PATHS: "/keys/primary/tls.key,/keys/secondary/tls.key" # Paths to the TLS keys
+
+---
+# MagicLink deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: magiclink
+  namespace: magiclink
+  labels:
+    app: magiclink
+    app.kubernetes.io/name: magiclink
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: magiclink
+  template:
+    metadata:
+      labels:
+        app: magiclink
+    spec:
+      
+      containers:
+      - name: magiclink
+        image: robertlestak/magiclink:latest
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 8080
+          name: http
+        volumeMounts:
+        - name: jwt-signer-primary
+          mountPath: "/keys/primary"
+          readOnly: true
+        - name: jwt-signer-secondary
+          mountPath: "/keys/secondary"
+          readOnly: true
+        envFrom:
+        - configMapRef:
+            name: magiclink-config
+        resources:
+          requests:
+            cpu: "100m"
+            memory: "128Mi"
+          limits:
+            cpu: "200m"
+            memory: "256Mi"
+        livenessProbe:
+          httpGet:
+            path: /healthz
+            port: 8080
+          initialDelaySeconds: 5
+          periodSeconds: 5
+        readinessProbe:
+          httpGet:
+            path: /healthz
+            port: 8080
+          initialDelaySeconds: 5
+          periodSeconds: 5
+      volumes:
+      - name: jwt-signer-primary
+        secret:
+          secretName: magiclink-jwt-signer-primary
+      - name: jwt-signer-secondary
+        secret:
+          secretName: magiclink-jwt-signer-secondary
+
+---
+# MagicLink Kubernetes service
+apiVersion: v1
+kind: Service
+metadata:
+  name: magiclink
+  namespace: magiclink
+  labels:
+    app: magiclink
+    app.kubernetes.io/name: magiclink
+spec:
+  selector:
+    app: magiclink
+  ports:
+  - port: 8080
+    name: http
+    targetPort: 8080

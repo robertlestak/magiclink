@@ -1,0 +1,93 @@
+---
+# MagicLink deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "magiclink.fullname" . }}
+  namespace: {{ .Values.namespace.name }}
+  labels:
+    {{- include "magiclink.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "magiclink.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "magiclink.selectorLabels" . | nindent 8 }}
+        {{- with .Values.podLabels }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+      {{- with .Values.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+    spec:
+      serviceAccountName: {{ include "magiclink.serviceAccountName" . }}
+      {{- with .Values.securityContext }}
+      securityContext:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      containers:
+      - name: {{ .Chart.Name }}
+        image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
+        imagePullPolicy: {{ .Values.image.pullPolicy }}
+        ports:
+        - containerPort: {{ .Values.service.port }}
+          name: {{ .Values.service.name }}
+        {{- if eq .Values.config.signingAlg "RS256" }}
+        volumeMounts:
+        {{- if .Values.certManager.primaryCert.create }}
+        - name: jwt-signer-primary
+          mountPath: "/keys/primary"
+          readOnly: true
+        {{- end }}
+        {{- if .Values.certManager.secondaryCert.create }}
+        - name: jwt-signer-secondary
+          mountPath: "/keys/secondary"
+          readOnly: true
+        {{- end }}
+        {{- end }}
+        envFrom:
+        - configMapRef:
+            name: {{ include "magiclink.fullname" . }}-config
+        resources:
+          {{- toYaml .Values.resources | nindent 10 }}
+        livenessProbe:
+          httpGet:
+            path: /healthz
+            port: {{ .Values.service.port }}
+          initialDelaySeconds: 5
+          periodSeconds: 5
+        readinessProbe:
+          httpGet:
+            path: /healthz
+            port: {{ .Values.service.port }}
+          initialDelaySeconds: 5
+          periodSeconds: 5
+      {{- if eq .Values.config.signingAlg "RS256" }}
+      volumes:
+      {{- if .Values.certManager.primaryCert.create }}
+      - name: jwt-signer-primary
+        secret:
+          secretName: {{ .Values.certManager.primaryCert.secretName }}
+      {{- end }}
+      {{- if .Values.certManager.secondaryCert.create }}
+      - name: jwt-signer-secondary
+        secret:
+          secretName: {{ .Values.certManager.secondaryCert.secretName }}
+      {{- end }}
+      {{- end }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}

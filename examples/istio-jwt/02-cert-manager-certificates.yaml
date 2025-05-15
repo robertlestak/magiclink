@@ -1,0 +1,54 @@
+---
+# Primary Certificate for JWT signing
+# This creates the primary certificate for JWT signing that will be used by MagicLink
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: magiclink-jwt-signer-primary
+  namespace: magiclink
+  labels:
+    app.kubernetes.io/name: magiclink
+    app.kubernetes.io/part-of: magiclink-demo
+spec:
+  # Don't use a conventional domain name since this isn't for TLS
+  commonName: jwt-signer-primary.magiclink.svc
+  # Use a very long duration since this is for JWT signing, not TLS
+  duration: 8760h  # 1 year
+  renewBefore: 720h  # 30 days
+  secretName: magiclink-jwt-signer-primary
+  privateKey:
+    algorithm: RSA
+    size: 2048  # 2048 bits is sufficient for JWT signing
+    encoding: PKCS1  # Use PKCS1 encoding for compatibility with most JWT libraries
+  issuerRef:
+    name: magiclink-ca-issuer
+    kind: Issuer
+    group: cert-manager.io
+
+---
+# Secondary Certificate for JWT signing
+# This creates a secondary certificate for JWT signing that can be used for rotation
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: magiclink-jwt-signer-secondary
+  namespace: magiclink
+  labels:
+    app.kubernetes.io/name: magiclink
+    app.kubernetes.io/part-of: magiclink-demo
+spec:
+  # Use a different common name for the secondary cert
+  commonName: jwt-signer-secondary.magiclink.svc
+  # Use a longer duration for the secondary key to ensure it outlives the primary
+  duration: 17520h  # 2 years
+  renewBefore: 720h  # 30 days
+  secretName: magiclink-jwt-signer-secondary
+  privateKey:
+    algorithm: RSA
+    size: 2048  # 2048 bits is sufficient for JWT signing
+    encoding: PKCS1  # Use PKCS1 encoding for compatibility with most JWT libraries
+  issuerRef:
+    name: magiclink-ca-issuer
+    kind: Issuer
+    group: cert-manager.io
+  

@@ -1,0 +1,44 @@
+Thank you for installing {{ .Chart.Name }}.
+
+Your release is named {{ .Release.Name }}.
+
+Istio JWT authentication has been configured for your application in the
+existing namespace {{ .Values.application.namespace }}:
+
+Namespace: {{ .Values.application.namespace }}
+Application: {{ index .Values.application.selector "app" }}
+MagicLink Service URL: {{ .Values.magiclinkService.url }}
+
+Protected paths requiring JWT authentication:
+{{- range .Values.protectedPaths }}
+- {{ . }}
+{{- end }}
+
+All other paths are publicly accessible by default.
+
+Allowed JWT subjects:
+{{- range .Values.application.allowedSubjects }}
+- {{ . }}
+{{- end }}
+
+{{- if .Values.cookieHandling.enabled }}
+Cookie handling via EnvoyFilter is enabled.
+This will automatically:
+- Set the {{ .Values.magiclinkService.cookieName }} cookie when a token is present in the URL
+- Redirect to remove the token parameter from the URL
+{{- end }}
+
+To generate a JWT token, use the MagicLink service:
+
+curl -X POST {{ .Values.magiclinkService.url }}/token \
+  -d '{
+    "ttl": "1h",
+    "sub": "{{ index .Values.application.allowedSubjects 0 }}",
+    "claims": {
+      "user_id": "123456"
+    }
+  }'
+
+This token can now be used to access protected paths:
+
+curl -H "Cookie: magic_token=YOUR_TOKEN" http://{{ index .Values.application.selector "app" }}.{{ .Values.application.namespace }}.svc.cluster.local/protected/resource
